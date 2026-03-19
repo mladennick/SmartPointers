@@ -110,6 +110,72 @@ public class UniquePtrTests
     }
 }
 
+public class WeakPtrTests
+{
+    [Fact]
+    public void TryUpgrade_Succeeds_WhileStrongReferenceIsAlive()
+    {
+        var resource = new CountingDisposable();
+        using var shared = new SharedPtr<CountingDisposable>(resource);
+        using IWeakPtr<CountingDisposable> weak = shared.Weak();
+
+        bool upgraded = weak.TryUpgrade(out ISharedPtr<CountingDisposable>? upgradedShared);
+
+        Assert.True(upgraded);
+        Assert.NotNull(upgradedShared);
+        Assert.False(weak.IsExpired);
+        upgradedShared.Dispose();
+    }
+
+    [Fact]
+    public void TryUpgrade_Fails_AfterLastStrongReferenceIsDisposed()
+    {
+        var resource = new CountingDisposable();
+        IWeakPtr<CountingDisposable> weak;
+
+        using (var shared = new SharedPtr<CountingDisposable>(resource))
+        {
+            weak = shared.Weak();
+        }
+
+        bool upgraded = weak.TryUpgrade(out ISharedPtr<CountingDisposable>? upgradedShared);
+
+        Assert.False(upgraded);
+        Assert.Null(upgradedShared);
+        Assert.True(weak.IsExpired);
+        weak.Dispose();
+    }
+
+    [Fact]
+    public void ConcurrentTryUpgrade_AndDispose_NeverDoubleDisposes()
+    {
+        var resource = new CountingDisposable();
+        using var shared = new SharedPtr<CountingDisposable>(resource);
+        using IWeakPtr<CountingDisposable> weak = shared.Weak();
+        var upgradedPtrs = new ConcurrentBag<ISharedPtr<CountingDisposable>>();
+
+        Parallel.For(0, 5000, i =>
+        {
+            if (i == 1000)
+            {
+                shared.Dispose();
+            }
+
+            if (weak.TryUpgrade(out ISharedPtr<CountingDisposable>? upgraded))
+            {
+                upgradedPtrs.Add(upgraded);
+            }
+        });
+
+        while (upgradedPtrs.TryTake(out ISharedPtr<CountingDisposable>? upgraded))
+        {
+            upgraded.Dispose();
+        }
+
+        Assert.Equal(1, resource.DisposeCount);
+    }
+}
+
 internal sealed class CountingDisposable : IDisposable
 {
     private int _disposeCount;
