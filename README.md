@@ -24,6 +24,21 @@ This library provides explicit ownership and thread-safe reference counting for 
 
 ## Usage
 
+### Factory helpers (`SmartPtr`)
+
+```csharp
+using SmartPointers;
+using SmartPointers.Demo;
+
+using var shared = SmartPtr.MakeShared(() => new FakeImageBuffer(sizeInMb: 20));
+using var unique = SmartPtr.MakeUnique(() => new FakeImageBuffer(sizeInMb: 5));
+```
+
+What this gives you:
+- C++-style creation flow similar to `make_shared` / `make_unique`.
+- Centralized argument validation for constructors and factories.
+- Same runtime semantics as creating `SharedPtr<T>` / `UniquePtr<T>` directly.
+
 ### `SharedPtr<T>`: share ownership across threads
 
 ```csharp

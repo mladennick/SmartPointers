@@ -176,6 +176,55 @@ public class WeakPtrTests
     }
 }
 
+public class SmartPtrFactoryTests
+{
+    [Fact]
+    public void MakeShared_FromInstance_CreatesWorkingSharedPointer()
+    {
+        var resource = new CountingDisposable();
+        using ISharedPtr<CountingDisposable> ptr = SmartPtr.MakeShared(resource);
+
+        Assert.False(ptr.IsEmpty);
+        Assert.Equal(1, ptr.UseCount);
+    }
+
+    [Fact]
+    public void MakeShared_FromFactory_CreatesWorkingSharedPointer()
+    {
+        using ISharedPtr<CountingDisposable> ptr = SmartPtr.MakeShared(() => new CountingDisposable());
+
+        Assert.False(ptr.IsEmpty);
+        Assert.Equal(1, ptr.UseCount);
+    }
+
+    [Fact]
+    public void MakeUnique_FromFactory_CreatesWorkingUniquePointer()
+    {
+        using IUniquePtr<CountingDisposable> ptr = SmartPtr.MakeUnique(() => new CountingDisposable());
+
+        Assert.False(ptr.IsEmpty);
+        Assert.NotNull(ptr.Target);
+    }
+
+    [Fact]
+    public void MakeShared_NullFactory_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => SmartPtr.MakeShared((Func<CountingDisposable>)null!));
+    }
+
+    [Fact]
+    public void MakeUnique_NullFactory_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => SmartPtr.MakeUnique((Func<CountingDisposable>)null!));
+    }
+
+    [Fact]
+    public void MakeShared_FactoryReturningNull_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => SmartPtr.MakeShared(() => (CountingDisposable)null!));
+    }
+}
+
 internal sealed class CountingDisposable : IDisposable
 {
     private int _disposeCount;
