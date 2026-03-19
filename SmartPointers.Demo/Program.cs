@@ -1,3 +1,4 @@
+using SmartPointers;
 using SmartPointers.Demo;
 using SmartPointers.Implementations;
 using SmartPointers.Interfaces;
@@ -11,6 +12,8 @@ Console.WriteLine();
 RunWeakPtrDemo();
 Console.WriteLine();
 RunUniquePtrDemo();
+Console.WriteLine();
+RunFactoryAndCustomDeleterDemo();
 
 Console.WriteLine();
 Console.WriteLine("Demo completed.");
@@ -85,6 +88,33 @@ static void RunUniquePtrDemo()
     Console.WriteLine($"[Main] Resource released manually. moved.IsEmpty = {moved.IsEmpty}");
     Console.WriteLine("[Main] Caller now owns raw resource and must dispose it.");
     raw.Dispose();
+}
+
+static void RunFactoryAndCustomDeleterDemo()
+{
+    Console.WriteLine("4) SmartPtr factory + custom deleter");
+    Console.WriteLine("------------------------------------");
+
+    int sharedCleanupCalls = 0;
+    int uniqueCleanupCalls = 0;
+
+    using (ISharedPtr<FakeImageBuffer> shared = SmartPtr.MakeShared(
+        () => new FakeImageBuffer(sizeInMb: 8),
+        _ => Interlocked.Increment(ref sharedCleanupCalls)))
+    {
+        using ISharedPtr<FakeImageBuffer> copy = shared.Share();
+        Console.WriteLine($"[Main] Factory SharedPtr created. UseCount = {shared.UseCount}");
+    }
+
+    using (IUniquePtr<FakeImageBuffer> unique = SmartPtr.MakeUnique(
+        () => new FakeImageBuffer(sizeInMb: 3),
+        _ => Interlocked.Increment(ref uniqueCleanupCalls)))
+    {
+        Console.WriteLine($"[Main] Factory UniquePtr created. IsEmpty = {unique.IsEmpty}");
+    }
+
+    Console.WriteLine($"[Main] Shared custom deleter calls = {sharedCleanupCalls}");
+    Console.WriteLine($"[Main] Unique custom deleter calls = {uniqueCleanupCalls}");
 }
 
 static async Task ProcessFrame(ISharedPtr<FakeImageBuffer> frame, int workerId)

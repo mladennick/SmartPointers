@@ -39,6 +39,36 @@ What this gives you:
 - Centralized argument validation for constructors and factories.
 - Same runtime semantics as creating `SharedPtr<T>` / `UniquePtr<T>` directly.
 
+### Custom deleters (`Action<T>`)
+
+```csharp
+using SmartPointers;
+using SmartPointers.Demo;
+
+int customCleanupCalls = 0;
+
+using var shared = SmartPtr.MakeShared(
+    () => new FakeImageBuffer(sizeInMb: 20),
+    buffer =>
+    {
+        // Replace with native cleanup for interop scenarios.
+        customCleanupCalls++;
+    });
+
+using var unique = SmartPtr.MakeUnique(
+    () => new FakeImageBuffer(sizeInMb: 5),
+    buffer =>
+    {
+        // You can customize cleanup for unique ownership too.
+        customCleanupCalls++;
+    });
+```
+
+What this gives you:
+- A custom release policy for unmanaged interop or specialized cleanup flows.
+- Default behavior remains `Dispose()` when no custom deleter is provided.
+- The custom deleter is executed exactly once at resource final release.
+
 ### `SharedPtr<T>`: share ownership across threads
 
 ```csharp

@@ -12,6 +12,7 @@ namespace SmartPointers.Implementations
     public sealed class UniquePtr<T> : IUniquePtr<T> where T : class, IDisposable
     {
         private T? _resource;
+        private readonly Action<T> _deleter;
         private int _isDisposed = 0;
 
         /// <summary>
@@ -19,9 +20,20 @@ namespace SmartPointers.Implementations
         /// </summary>
         /// <param name="resource">The disposable resource to manage.</param>
         public UniquePtr(T resource)
+            : this(resource, deleter: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new unique pointer that takes exclusive ownership of <paramref name="resource"/>.
+        /// </summary>
+        /// <param name="resource">The disposable resource to manage.</param>
+        /// <param name="deleter">Custom cleanup action. If <see langword="null"/>, <see cref="IDisposable.Dispose"/> is used.</param>
+        public UniquePtr(T resource, Action<T>? deleter)
         {
             ArgumentNullException.ThrowIfNull(resource);
             _resource = resource;
+            _deleter = deleter ?? (r => r.Dispose());
         }
 
         /// <inheritdoc />
@@ -52,7 +64,7 @@ namespace SmartPointers.Implementations
             Interlocked.Exchange(ref _isDisposed, 1);
             GC.SuppressFinalize(this);
 
-            return new UniquePtr<T>(resourceToMove);
+            return new UniquePtr<T>(resourceToMove, _deleter);
         }
 
         /// <inheritdoc />
@@ -90,7 +102,10 @@ namespace SmartPointers.Implementations
             // If this hasn't been disposed, and it still owns a resource, destroy it.
             if (Interlocked.Exchange(ref _isDisposed, 1) == 0)
             {
-                _resource?.Dispose();
+                if (_resource is T resource)
+                {
+                    _deleter(resource);
+                }
                 _resource = null;
             }
         }

@@ -18,6 +18,7 @@ namespace SmartPointers.Implementations
 
         // The shared counter
         private int _refCount;
+        private readonly Action<T> _deleter;
 
         /// <summary>
         /// Gets the current number of active references.
@@ -27,10 +28,11 @@ namespace SmartPointers.Implementations
         /// <summary>
         /// Initializes a new control block with one owner.
         /// </summary>
-        public ControlBlock(T resource)
+        public ControlBlock(T resource, Action<T>? deleter = null)
         {
             Resource = resource;
             _refCount = 1;
+            _deleter = deleter ?? (r => r.Dispose());
         }
 
         /// <summary>
@@ -63,7 +65,10 @@ namespace SmartPointers.Implementations
             // If it hits exactly 0, this thread is the one responsible for the cleanup.
             if (Interlocked.Decrement(ref _refCount) == 0)
             {
-                Resource?.Dispose();
+                if (Resource is T resource)
+                {
+                    _deleter(resource);
+                }
                 Resource = null; // Free the C# reference to help the GC
             }
         }
@@ -83,9 +88,20 @@ namespace SmartPointers.Implementations
         /// </summary>
         /// <param name="resource">The disposable resource to manage.</param>
         public SharedPtr(T resource)
+            : this(resource, deleter: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new shared pointer that owns <paramref name="resource"/> and releases
+        /// it with a custom <paramref name="deleter"/> when the final owner is disposed.
+        /// </summary>
+        /// <param name="resource">The disposable resource to manage.</param>
+        /// <param name="deleter">Custom cleanup action. If <see langword="null"/>, <see cref="IDisposable.Dispose"/> is used.</param>
+        public SharedPtr(T resource, Action<T>? deleter)
         {
             ArgumentNullException.ThrowIfNull(resource);
-            _controlBlock = new ControlBlock<T>(resource);
+            _controlBlock = new ControlBlock<T>(resource, deleter);
         }
 
         private SharedPtr(ControlBlock<T> block)

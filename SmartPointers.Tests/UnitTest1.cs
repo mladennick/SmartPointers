@@ -223,6 +223,36 @@ public class SmartPtrFactoryTests
     {
         Assert.Throws<ArgumentNullException>(() => SmartPtr.MakeShared(() => (CountingDisposable)null!));
     }
+
+    [Fact]
+    public void MakeShared_CustomDeleter_IsCalledOnceAtFinalRelease()
+    {
+        var resource = new CountingDisposable();
+        int deleterCalls = 0;
+        using ISharedPtr<CountingDisposable> root = SmartPtr.MakeShared(resource, _ => Interlocked.Increment(ref deleterCalls));
+        using ISharedPtr<CountingDisposable> copy = root.Share();
+
+        copy.Dispose();
+        Assert.Equal(0, deleterCalls);
+
+        root.Dispose();
+        Assert.Equal(1, deleterCalls);
+        Assert.Equal(0, resource.DisposeCount);
+    }
+
+    [Fact]
+    public void MakeUnique_CustomDeleter_IsCalledOnce()
+    {
+        var resource = new CountingDisposable();
+        int deleterCalls = 0;
+        using IUniquePtr<CountingDisposable> ptr = SmartPtr.MakeUnique(resource, _ => Interlocked.Increment(ref deleterCalls));
+
+        ptr.Dispose();
+        ptr.Dispose();
+
+        Assert.Equal(1, deleterCalls);
+        Assert.Equal(0, resource.DisposeCount);
+    }
 }
 
 internal sealed class CountingDisposable : IDisposable

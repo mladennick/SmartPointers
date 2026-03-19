@@ -19,6 +19,17 @@ namespace SmartPointers
         }
 
         /// <summary>
+        /// Creates a new <see cref="ISharedPtr{T}"/> from an existing resource instance
+        /// with a custom cleanup action.
+        /// </summary>
+        public static ISharedPtr<T> MakeShared<T>(T resource, Action<T> deleter) where T : class, IDisposable
+        {
+            ArgumentNullException.ThrowIfNull(resource);
+            ArgumentNullException.ThrowIfNull(deleter);
+            return new SharedPtr<T>(resource, deleter);
+        }
+
+        /// <summary>
         /// Creates a new <see cref="ISharedPtr{T}"/> by invoking <paramref name="factory"/>.
         /// </summary>
         public static ISharedPtr<T> MakeShared<T>(Func<T> factory) where T : class, IDisposable
@@ -27,6 +38,19 @@ namespace SmartPointers
             T resource = factory();
             ArgumentNullException.ThrowIfNull(resource);
             return new SharedPtr<T>(resource);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="ISharedPtr{T}"/> by invoking <paramref name="factory"/>
+        /// and registering a custom cleanup action.
+        /// </summary>
+        public static ISharedPtr<T> MakeShared<T>(Func<T> factory, Action<T> deleter) where T : class, IDisposable
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            ArgumentNullException.ThrowIfNull(deleter);
+            T resource = factory();
+            ArgumentNullException.ThrowIfNull(resource);
+            return new SharedPtr<T>(resource, deleter);
         }
 
         /// <summary>
@@ -39,6 +63,17 @@ namespace SmartPointers
         }
 
         /// <summary>
+        /// Creates a new <see cref="IUniquePtr{T}"/> from an existing resource instance
+        /// with a custom cleanup action.
+        /// </summary>
+        public static IUniquePtr<T> MakeUnique<T>(T resource, Action<T> deleter) where T : class, IDisposable
+        {
+            ArgumentNullException.ThrowIfNull(resource);
+            ArgumentNullException.ThrowIfNull(deleter);
+            return new UniquePtr<T>(resource, deleter);
+        }
+
+        /// <summary>
         /// Creates a new <see cref="IUniquePtr{T}"/> by invoking <paramref name="factory"/>.
         /// </summary>
         public static IUniquePtr<T> MakeUnique<T>(Func<T> factory) where T : class, IDisposable
@@ -47,6 +82,19 @@ namespace SmartPointers
             T resource = factory();
             ArgumentNullException.ThrowIfNull(resource);
             return new UniquePtr<T>(resource);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="IUniquePtr{T}"/> by invoking <paramref name="factory"/>
+        /// and registering a custom cleanup action.
+        /// </summary>
+        public static IUniquePtr<T> MakeUnique<T>(Func<T> factory, Action<T> deleter) where T : class, IDisposable
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            ArgumentNullException.ThrowIfNull(deleter);
+            T resource = factory();
+            ArgumentNullException.ThrowIfNull(resource);
+            return new UniquePtr<T>(resource, deleter);
         }
     }
 }
