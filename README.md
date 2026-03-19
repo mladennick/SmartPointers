@@ -23,7 +23,57 @@ This library provides explicit ownership and thread-safe reference counting for 
 
 ## Usage
 
-*(Code examples coming soon!)*
+### `SharedPtr<T>`: share ownership across threads
+
+```csharp
+using SmartPointers.Implementations;
+using SmartPointers.Interfaces;
+using SmartPointers.Demo;
+
+using var root = new SharedPtr<FakeImageBuffer>(new FakeImageBuffer(sizeInMb: 20));
+
+var tasks = Enumerable.Range(1, 4).Select(async workerId =>
+{
+    using ISharedPtr<FakeImageBuffer> local = root.Share();
+    await Task.Delay(100); // Simulate work
+    int checksum = local.Target.Data[0] + local.Target.Data[^1] + workerId;
+    Console.WriteLine($"Worker {workerId} -> {checksum}, UseCount={local.UseCount}");
+});
+
+await Task.WhenAll(tasks);
+Console.WriteLine($"After workers: UseCount={root.UseCount}");
+```
+
+What this guarantees:
+- `Share()` increments the reference count atomically.
+- Every pointer instance can be disposed independently.
+- The underlying resource is disposed exactly once, when the final owner is released.
+
+### `UniquePtr<T>`: strict single ownership
+
+```csharp
+using SmartPointers.Implementations;
+using SmartPointers.Interfaces;
+using SmartPointers.Demo;
+
+var owner = new UniquePtr<FakeImageBuffer>(new FakeImageBuffer(sizeInMb: 5));
+
+// Move ownership (C++-like std::move semantics)
+IUniquePtr<FakeImageBuffer> moved = owner.Transfer();
+
+// Give ownership back to caller
+FakeImageBuffer raw = moved.Release();
+raw.Dispose(); // Caller is now responsible
+```
+
+What this guarantees:
+- `Transfer()` invalidates the source pointer and moves ownership to a new `UniquePtr<T>`.
+- `Release()` detaches the resource from the pointer without disposing it.
+- `Dispose()` is idempotent and safe to call more than once.
+
+### Thread-safety note
+
+`SharedPtr<T>` makes ownership and lifetime management thread-safe. It does not automatically make `T` itself thread-safe. If multiple threads write to the same underlying resource, protect access with your own synchronization strategy (`lock`, `SemaphoreSlim`, etc.).
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
