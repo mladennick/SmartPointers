@@ -90,12 +90,29 @@ namespace SmartPointers.Implementations
 
         private SharedPtr(ControlBlock<T> block)
         {
+            ArgumentNullException.ThrowIfNull(block);
             _controlBlock = block;
             if (!_controlBlock.TryAddRef())
             {
                 _controlBlock = null;
                 throw new InvalidOperationException("Cannot share a disposed SharedPtr.");
             }
+        }
+
+        private SharedPtr(ControlBlock<T> block, bool addRef)
+        {
+            ArgumentNullException.ThrowIfNull(block);
+            _controlBlock = block;
+            if (addRef && !_controlBlock.TryAddRef())
+            {
+                _controlBlock = null;
+                throw new InvalidOperationException("Cannot share a disposed SharedPtr.");
+            }
+        }
+
+        internal static SharedPtr<T> CreateFromUpgradedWeakPtr(ControlBlock<T> block)
+        {
+            return new SharedPtr<T>(block, addRef: false);
         }
 
         // --- ISmartPtr Implementation ---
@@ -129,6 +146,16 @@ namespace SmartPointers.Implementations
             if (block == null) throw new InvalidOperationException("Cannot share an empty SharedPtr.");
 
             return new SharedPtr<T>(block);
+        }
+
+        /// <inheritdoc />
+        public IWeakPtr<T> Weak()
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) == 1, this);
+            ControlBlock<T>? block = Volatile.Read(ref _controlBlock);
+            if (block == null) throw new InvalidOperationException("Cannot create a weak pointer from an empty SharedPtr.");
+
+            return new WeakPtr<T>(block);
         }
 
 
