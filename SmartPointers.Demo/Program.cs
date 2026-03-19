@@ -8,6 +8,8 @@ Console.WriteLine();
 
 await RunSharedPtrDemo();
 Console.WriteLine();
+RunWeakPtrDemo();
+Console.WriteLine();
 RunUniquePtrDemo();
 
 Console.WriteLine();
@@ -34,9 +36,34 @@ static async Task RunSharedPtrDemo()
     Console.WriteLine("[Main] Leaving using scope now. Last owner will dispose resource.");
 }
 
+static void RunWeakPtrDemo()
+{
+    Console.WriteLine("2) WeakPtr<T> - non-owning observer with upgrade");
+    Console.WriteLine("------------------------------------------------");
+
+    using var owner = new SharedPtr<FakeImageBuffer>(new FakeImageBuffer(sizeInMb: 10));
+    using IWeakPtr<FakeImageBuffer> weak = owner.Weak();
+    Console.WriteLine($"[Main] Weak pointer created. IsExpired = {weak.IsExpired}");
+
+    if (weak.TryUpgrade(out ISharedPtr<FakeImageBuffer>? upgraded))
+    {
+        using (upgraded)
+        {
+            Console.WriteLine($"[Main] Upgrade succeeded. UseCount = {upgraded.UseCount}");
+            int checksum = upgraded.Target.Data[0] + upgraded.Target.Data[^1];
+            Console.WriteLine($"[Main] Upgraded pointer checksum = {checksum}");
+        }
+    }
+
+    owner.Dispose();
+    Console.WriteLine($"[Main] Owner disposed. Weak IsExpired = {weak.IsExpired}");
+    bool upgradedAfterDispose = weak.TryUpgrade(out _);
+    Console.WriteLine($"[Main] Upgrade after final dispose -> {upgradedAfterDispose}");
+}
+
 static void RunUniquePtrDemo()
 {
-    Console.WriteLine("2) UniquePtr<T> - strict single ownership");
+    Console.WriteLine("3) UniquePtr<T> - strict single ownership");
     Console.WriteLine("------------------------------------------");
 
     var owner = new UniquePtr<FakeImageBuffer>(new FakeImageBuffer(sizeInMb: 5));

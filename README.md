@@ -14,6 +14,7 @@ This library provides explicit ownership and thread-safe reference counting for 
 
 ### Features
 * **`SharedPtr<T>`**: Thread-safe, reference-counted pointer. The underlying `IDisposable` is only disposed when the last reference is released. Perfect for passing images across multiple worker threads.
+* **`WeakPtr<T>`**: Non-owning observer pointer. It can attempt to upgrade to a `SharedPtr<T>` only while the resource is still alive, helping avoid ownership cycles.
 * **`UniquePtr<T>`**: Enforces strict single-ownership of a resource. Allows safely transferring ownership between scopes without accidental sharing.
 
 ## Project Structure
@@ -48,6 +49,33 @@ What this guarantees:
 - `Share()` increments the reference count atomically.
 - Every pointer instance can be disposed independently.
 - The underlying resource is disposed exactly once, when the final owner is released.
+
+### `WeakPtr<T>`: observe without owning
+
+```csharp
+using SmartPointers.Implementations;
+using SmartPointers.Interfaces;
+using SmartPointers.Demo;
+
+using var owner = new SharedPtr<FakeImageBuffer>(new FakeImageBuffer(sizeInMb: 10));
+using IWeakPtr<FakeImageBuffer> weak = owner.Weak();
+
+if (weak.TryUpgrade(out ISharedPtr<FakeImageBuffer>? upgraded))
+{
+    using (upgraded)
+    {
+        Console.WriteLine($"Upgrade succeeded, UseCount={upgraded.UseCount}");
+    }
+}
+
+owner.Dispose();
+bool upgradedAfterDispose = weak.TryUpgrade(out _); // false
+```
+
+What this guarantees:
+- `Weak()` does not increment the strong ownership count.
+- `TryUpgrade(...)` atomically succeeds only while the resource is still alive.
+- Once the last shared owner is released, upgrades fail safely.
 
 ### `UniquePtr<T>`: strict single ownership
 
